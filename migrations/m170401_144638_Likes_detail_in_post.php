@@ -13,8 +13,8 @@ class m170401_144638_Likes_detail_in_post extends Migration
 			'individual_name' => Schema::TYPE_TEXT,
 			'individual_category' => Schema::TYPE_TEXT,
 			'individual_id' => $this->integer(),
-			//'to_name' => Schema::TYPE_TEXT,
-			//'data_aquired_time'=>$this->timestamp()->defaultValue(null)
+			'to_name' => Schema::TYPE_TEXT,
+			'data_aquired_time'=>$this->timestamp()->defaultValue(null)
 		]);
     }
 

@@ -77,11 +77,17 @@ class SiteController extends Controller
 		else
 			$token = $_SESSION['fb_access_token'];
 
+		$paramArr = http_build_query(
+			array(
+				'limit'=>Yii::$app->params['APP_LIMIT'],
+				'fields' => 'name,admin_creator,coordinates,created_time,description,comments{like_count},likes,from,to',
+			)
+		);
 		$requests = [
-		  	$fb->request('GET', '/'.$PAGE_ID .'/feed'),
+		  	$fb->request('GET', '/'.$PAGE_ID .'/feed?'.$paramArr),
 		];
 		try {
-		  	$batchResponse = $fb->sendBatchRequest($requests, $token);
+		  	$feeds = $fb->sendBatchRequest($requests, $token);
 		} catch(Facebook\Exceptions\FacebookResponseException $e) {
 		  	echo 'Graph returned an error: ' . $e->getMessage();
 		 	exit;
@@ -90,7 +96,7 @@ class SiteController extends Controller
 		  	exit;
 		}
 
-		foreach ($batchResponse as $key => $response) {
+		foreach ($feeds as $key => $response) {
 		  	if ($response->isError()) {
 		    	$error = $response->getThrownException();
 		    	echo $key . ' error: ' . $error->getMessage();
@@ -102,18 +108,17 @@ class SiteController extends Controller
     }
     
     private function addData($datas){
-    	$connection = \yii\db\Connection;
+    	$connection = \Yii::$app->db;
     	$transaction = $connection->beginTransaction();
 		try {
 			$likes = new models\LikesDetailInPost();
-			foreach($datas as $row){
-		    	$likes->page_id = $row[''];
-		    	$likes->post_id = $row[''];
-		    	$likes->individual_name = $row[''];
-		    	$likes->individual_category = $row[''];
+			foreach($datas as $row){		    	
+		    	$likes->page_id = Yii::$app->params['PAGE_ID'];
+		    	$likes->post_id = $row['id'];
+		    	$likes->individual_name = $row['name'];
+		    	$likes->individual_category = $row['message'];
 		    	$likes->individual_id = $row[''];
-				
-		    	var_dump($likes->save());
+		    	$likes->save();
 	    	}
 	    	
 		    $connection->createCommand($sql1)->execute();
@@ -129,6 +134,6 @@ class SiteController extends Controller
 
     public function actionExport()
     {
-    	echo 'exxpo';
+    	
     }
 }
