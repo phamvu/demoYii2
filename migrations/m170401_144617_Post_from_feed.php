@@ -8,18 +8,15 @@ class m170401_144617_Post_from_feed extends Migration
     public function up()
     {
 		$this->createTable('post_from_feed', [
-			'page_id' => $this->integer(),
+			'page_id' => $this->bigInteger(13),
 			'post_id' => Schema::TYPE_STRING,
 			'from_name' => Schema::TYPE_STRING,
 			'from_category' => Schema::TYPE_STRING,
-			'from_id' => $this->integer(),
-			'number_of_likes' => $this->integer(),
-			'number_of_comments' => $this->integer(),
-			'title' => Schema::TYPE_STRING,
+			'from_id' => $this->Biginteger(),
 			'page_owner' => $this->boolean(),
 			'to_name' => Schema::TYPE_TEXT,
 			'to_category' => Schema::TYPE_TEXT,
-			'to_id' => $this->integer(),
+			'to_id' => $this->Biginteger(),
 			'message' => Schema::TYPE_TEXT,
 			'message_tags' => $this->boolean(),
 			'picture' => Schema::TYPE_TEXT,
@@ -37,18 +34,19 @@ class m170401_144617_Post_from_feed extends Migration
 			'privacy_description' => Schema::TYPE_TEXT,
 			'privacy_value' => Schema::TYPE_TEXT,			
 			'type' => Schema::TYPE_TEXT,
-			'likes' => $this->integer(),
+			'likes' => $this->Biginteger(),
 			'place' => Schema::TYPE_TEXT,
 			'story' => Schema::TYPE_TEXT,
 			'story_tags' => Schema::TYPE_TEXT,
 			'with_tags' => $this->boolean(),
-			'comments' => Schema::TYPE_TEXT,			
+			'comments' => $this->Biginteger(),		
 			'object_id' => Schema::TYPE_TEXT,
 			'application_name' => Schema::TYPE_TEXT,
 			'application_id' => Schema::TYPE_TEXT,			
 			'created_time'=> $this->timestamp(),
             'updated_time'=> $this->timestamp(),
-			'data_aquired_time'=>$this->timestamp()->defaultValue(null)
+			'data_aquired_time'=>$this->timestamp()->defaultValue(null),
+			'PRIMARY KEY (page_id,post_id)'
 		]);
     }
 

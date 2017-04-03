@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "fbc8e99af164ca61ea15bea19ea89e28",
+    "content-hash": "49d1417e931ef53f65d02d7f52564f1a",
     "packages": [
         {
             "name": "bower-asset/bootstrap",
@@ -532,21 +532,24 @@
         },
         {
             "name": "kartik-v/yii2-grid",
-            "version": "v3.1.3",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/kartik-v/yii2-grid.git",
-                "reference": "448db13904dad68153ef466bbc905b916a2a5900"
+                "reference": "05b889d6b51cdebd7e442be51b3cb7cf4f49fb9a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kartik-v/yii2-grid/zipball/448db13904dad68153ef466bbc905b916a2a5900",
-                "reference": "448db13904dad68153ef466bbc905b916a2a5900",
+                "url": "https://api.github.com/repos/kartik-v/yii2-grid/zipball/05b889d6b51cdebd7e442be51b3cb7cf4f49fb9a",
+                "reference": "05b889d6b51cdebd7e442be51b3cb7cf4f49fb9a",
                 "shasum": ""
             },
             "require": {
                 "kartik-v/yii2-dialog": "~1.0",
                 "kartik-v/yii2-krajee-base": "~1.7"
+            },
+            "suggest": {
+                "kartik-v/yii2-mpdf": "For exporting grids to PDF"
             },
             "type": "yii2-extension",
             "extra": {
@@ -578,7 +581,7 @@
                 "widget",
                 "yii2"
             ],
-            "time": "2016-10-22T16:52:42+00:00"
+            "time": "2017-03-11 10:54:52"
         },
         {
             "name": "kartik-v/yii2-krajee-base",
@@ -3303,7 +3306,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "kartik-v/yii2-export": 20
+        "kartik-v/yii2-export": 20,
+        "kartik-v/yii2-grid": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
