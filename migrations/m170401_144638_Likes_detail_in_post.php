@@ -15,7 +15,7 @@ class m170401_144638_Likes_detail_in_post extends Migration
 			'individual_id' => $this->bigInteger(),
 			'to_name' => Schema::TYPE_TEXT,
 			'data_aquired_time'=>$this->timestamp()->defaultValue(null),
-            'PRIMARY KEY (page_id,post_id)'
+            'PRIMARY KEY (page_id,post_id,individual_id)'
 		]);
     }
 

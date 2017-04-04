@@ -19,11 +19,10 @@ class ApiController extends Controller
 	public $defaultAction = 'index';
 	private $pageId;
 	private $token;
-	
+	private $fb;
 
 	public function __construct($id, $module, $config = [])
 	{
-		$this->pageId = Yii::$app->params['APP_ID'];
 		if(!empty($_SESSION['fb_access_token']))
 			$this->token = $_SESSION['fb_access_token'];
 		parent::__construct($id, $module, $config);
@@ -31,6 +30,7 @@ class ApiController extends Controller
     
 	public function actionIndex(){
 		$post = new models\PostFromFeed();
+		$page = new models\PageList();
 		$query = $post::find();
 
 		$dataProvider = new ActiveDataProvider([
@@ -61,27 +61,31 @@ class ApiController extends Controller
 		    		'hover'=>true,
 		    		 'toolbar'=> [
 				        ['content'=>
-				            Html::a('<i class="glyphicon glyphicon-repeat"></i>', ['grid-demo'], ['data-pjax'=>0, 'class'=>'btn btn-default', 'title'=>'Reset Grid'])
+				           ''
 				        ],
 				        '{export}',
 				    ],
 				    'panel'=>[
 				        'type'=>GridView::TYPE_PRIMARY,
 				    ]
-				], 
-		    	'pageId'=> $this->pageId
+				],
+		    	//'pageList'=> $page::find()->all()
 		    ]
 		);
 	}
-    public function actionCreate()
+    public function actionCreate($PAGE_ID = '')
     {
-    	$PAGE_ID =$this->pageId;
-		$fb = new Facebook\Facebook([
-		   	'app_id' => $this->pageId,
+    	if(empty($PAGE_ID))
+    		$PAGE_ID = Yii::$app->params['PAGE_ID'];
+    	else
+			$this->pageId = $PAGE_ID;
+
+		$this->fb = new Facebook\Facebook([
+		   	'app_id' => Yii::$app->params['APP_ID'],
 		  	'app_secret' => Yii::$app->params['APP_SECRET'],
 		  	'default_graph_version' => Yii::$app->params['APP_VERSION'],
 		]);
-		$fbApp = $fb->getApp();
+		$fbApp = $this->fb->getApp();
 		
 		$serializedFacebookApp = serialize($fbApp);
 		$unserializedFacebookApp = unserialize($serializedFacebookApp);
@@ -102,12 +106,12 @@ class ApiController extends Controller
 			)
 		);
 		$requests = [
-			$fb->request('GET', '/'.$PAGE_ID .'?'. $paramArrPage),
-		  	$fb->request('GET', '/'.$PAGE_ID .'/feed?'.$paramArrFeed),
+			$this->fb->request('GET', '/'.$PAGE_ID .'?'. $paramArrPage),
+		  	$this->fb->request('GET', '/'.$PAGE_ID .'/feed?'.$paramArrFeed),
 		];
 
 		try {
-		  	$feeds = $fb->sendBatchRequest($requests, $this->token);
+		  	$feeds = $this->fb->sendBatchRequest($requests, $this->token);
 		} catch(Facebook\Exceptions\FacebookResponseException $e) {
 		  	echo 'Graph returned an error: ' . $e->getMessage();
 		 	exit;
@@ -125,10 +129,15 @@ class ApiController extends Controller
 	    	$data = $response->getDecodedBody();
 	    	$this->addData($data['data'], $pageInfo);
 	  	}
-	  	return $this->redirect('index.php/index');
+	  	return $this->goBack((!empty(Yii::$app->request->referrer) ? Yii::$app->request->referrer : null));
+	  	//return $this->redirect('index');
 	}
     
     private function addData($datas, $pageInfo = []){
+    	ini_set('memory_limit', '256M');
+        ini_set('max_execution_time', 500);
+        ini_set('max_allowed_packet', 500);
+        ini_set('wait_timeout', 500);
     	$connection = \Yii::$app->db;
     	$transaction = $connection->beginTransaction();
 		try {
@@ -136,8 +145,8 @@ class ApiController extends Controller
 			$likes = new models\LikesDetailInPost();
 			$rowDatas = array();
 			$requests = array();
-			foreach($datas as $row){
-				$rowDatas[] = [
+			foreach($datas as $i => $row){
+				$rowDatas[$i] = [
 					'page_id' => $this->pageId,
 			    	'post_id' => $row['id'],
 			    	'from_name' => $row['from']['name'],
@@ -146,7 +155,7 @@ class ApiController extends Controller
 			    	'page_owner' => ($row['from']['id'] == $this->pageId)?1:0,
 			    	'to_id' => @$row['to']['data'][0]['id'],
 
-			    	'to_category' => 'get api AAAA', //get api page category
+			    	'to_category' => @$row['to']['data'][0]['category'],
 			    	
 			    	'to_name' => @$row['to']['data'][0]['name'],
 			    	'message' => @$row['message'],
@@ -176,34 +185,42 @@ class ApiController extends Controller
 			    	'comments' => @$row['comments']['summary']['total_count'],
 			    	'object_id' => @$row['object_id'],
 
-			    	'application_name' => @$row['object_id'],
-			    	'application_id' => @$row['object_id'],
+			    	'application_name' => @$row['application'][0]['name'],	
+			    	'application_id' => @$row['application'][0]['id'],	
 
 			    	'created_time' => @$row['created_time'],
 			    	'updated_time' => @$row['updated_time'],
 			    	'data_aquired_time' => date('Y-m-d H:i:s'),
 				];
-				$requests[] = $fb->request('GET', '/'. $row['id'] .'/likes?'. http_build_query(array('limit'=>@$row['likes']['summary']['total_count'])));
+				$dell = $post::find()->where(['page_id'=> $rowDatas[$i]['page_id'],'post_id'=>$rowDatas[$i]['post_id']])->one();
+				if(!empty($dell)) $dell->delete();
+				$requests[] = $this->fb->request('GET', '/'. $row['id'] .'/likes?'. http_build_query(array('fields'=>'id,profile_type,name','limit'=>@$row['likes']['summary']['total_count'])));
 	    	}
+
 	    	Yii::$app->db->createCommand()->batchInsert(models\PostFromFeed::tableName(), $post->attributes(), $rowDatas)->execute();
 	    	
 	    	if(!empty($requests)){
-		    	$feeds = $fb->sendBatchRequest($requests, $this->token);
-		    	foreach($feeds as $row){
+		    	$feeds = $this->fb->sendBatchRequest($requests, $this->token);
+		    	foreach($feeds as $i=> $row){
+		    		$rowDatasLike = [];
 		    		if(!$row->isError()) {
 				    	$data = $row->getDecodedBody();
-					  	// $rowDatasLike[] = [
-						// 	'page_id' => $this->pageId,
-					 	// 	'post_id' => $row['id'],
-						// 	'individual_name' => '',
-						// 	'individual_category' => '',
-						// 	'individual_id' => '',
-						// 	'to_name' => '',
-						// 	'data_aquired_time' => date('Y-m-d H:i:s'),
-						// ];
-				    }		    	
+				    	foreach($data['data'] as $k => $like){
+				    		$rowDatasLike[$k] = [
+								'page_id' => $this->pageId,
+						 		'post_id' => $rowDatas[$i]['post_id'],
+								'individual_name' => @$like['name'],
+								'individual_category' => @$like['profile_type'], //get category by 
+								'individual_id' => @$like['id'],
+								'to_name' => '',
+								'data_aquired_time' => date('Y-m-d H:i:s'),
+							];
+							$likes::deleteAll(['page_id'=> $rowDatasLike[$k]['page_id'],'post_id'=>$rowDatasLike[$k]['post_id'], 'individual_id'=>$rowDatasLike[$k]['individual_id'] ]);
+				    	}
+				    	
+				    }
+				    Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
 		    	}
-		    	// Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
 	    	}
 
 		    $transaction->commit();
