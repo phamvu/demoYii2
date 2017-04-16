@@ -37,6 +37,7 @@ AppAsset::register($this);
         'items' => [
             ['label' => 'Home', 'url' => ['/api/index']],
             ['label' => 'Page', 'url' => ['/page/index']],
+            ['label' => 'Likes', 'url' => ['/likes/index']],
         ],
     ]);
     NavBar::end();

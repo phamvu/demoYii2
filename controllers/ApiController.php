@@ -13,6 +13,7 @@ use app\models;//\LikesDetailInPost;
 use kartik\grid\GridView;
 use yii\data\ActiveDataProvider;
 use yii\helpers\Html;
+use csvexport\CSVExport;
 
 class ApiController extends Controller
 {
@@ -33,6 +34,8 @@ class ApiController extends Controller
 		$page = new models\PageList();
 		$query = $post::find();
 
+		/* Config export CSV Page Feed - Start */
+
 		$dataProvider = new ActiveDataProvider([
 		    'query' => $query,
 		    'pagination' => [
@@ -45,7 +48,9 @@ class ApiController extends Controller
 		        ]
 		    ],
 		]);
+		
 		$exportConfig = [GridView::CSV => ['label' => 'Save as CSV']];
+		/* Config export CSV Page Feed - End */
 		return $this->render('index',
 			[
 				'dataPost'=> [
@@ -56,7 +61,7 @@ class ApiController extends Controller
 				    'filterRowOptions'=>['class'=>'kartik-sheet-style'],
 					'dataProvider'=> $dataProvider,
 		    		'filterModel' => $post,
-		    		'columns' => $post->attributes(),
+		    		//'columns' => $post->attributes(),
 		    		'responsive'=>true,
 		    		'hover'=>true,
 		    		 'toolbar'=> [
@@ -93,7 +98,8 @@ class ApiController extends Controller
 		if(empty($_SESSION['fb_access_token']))
 			$this->token = $_SESSION['fb_access_token'] = $unserializedFacebookApp->getAccessToken();
 
-
+		
+		///////////////////////////////
 		$paramArrPage = http_build_query(
 			array(
 				'fields' => 'category,category_list'
@@ -122,6 +128,8 @@ class ApiController extends Controller
 		
 		$pageInfo = $feeds[0]->getDecodedBody();
 		$response = $feeds[1];
+		$connection = \Yii::$app->db;
+    	$transaction = $connection->beginTransaction();
 		if ($response->isError()) {
 	    	$error = $response->getThrownException();
 	    	echo ' error: ' . $error->getMessage(); die;
@@ -129,6 +137,8 @@ class ApiController extends Controller
 	    	$data = $response->getDecodedBody();
 	    	$this->addData($data['data'], $pageInfo);
 	  	}
+	  	$transaction->commit();
+	  	//return $this->render('../site/index');
 	  	return $this->goBack((!empty(Yii::$app->request->referrer) ? Yii::$app->request->referrer : null));
 	  	//return $this->redirect('index');
 	}
@@ -138,8 +148,6 @@ class ApiController extends Controller
         ini_set('max_execution_time', 500);
         ini_set('max_allowed_packet', 500);
         ini_set('wait_timeout', 500);
-    	$connection = \Yii::$app->db;
-    	$transaction = $connection->beginTransaction();
 		try {
 			$post = new models\PostFromFeed();
 			$likes = new models\LikesDetailInPost();
@@ -192,9 +200,15 @@ class ApiController extends Controller
 			    	'updated_time' => @$row['updated_time'],
 			    	'data_aquired_time' => date('Y-m-d H:i:s'),
 				];
-				$dell = $post::find()->where(['page_id'=> $rowDatas[$i]['page_id'],'post_id'=>$rowDatas[$i]['post_id']])->one();
+				$dell = $post::find()->where(
+					[
+						'page_id'=> $rowDatas[$i]['page_id'],
+						'post_id'=>$rowDatas[$i]['post_id']
+					]
+				)->one();
+
 				if(!empty($dell)) $dell->delete();
-				$requests[] = $this->fb->request('GET', '/'. $row['id'] .'/likes?'. http_build_query(array('fields'=>'id,profile_type,name','limit'=>@$row['likes']['summary']['total_count'])));
+				$requests[] = $this->fb->request('GET', '/'. $row['id'] .'/likes')->setParams(array('local_post_id'=> $row['id'],'fields'=>'id,profile_type,name','limit'=>@$row['likes']['summary']['total_count']));
 	    	}
 
 	    	Yii::$app->db->createCommand()->batchInsert(models\PostFromFeed::tableName(), $post->attributes(), $rowDatas)->execute();
@@ -204,26 +218,25 @@ class ApiController extends Controller
 		    	foreach($feeds as $i=> $row){
 		    		$rowDatasLike = [];
 		    		if(!$row->isError()) {
-				    	$data = $row->getDecodedBody();
-				    	foreach($data['data'] as $k => $like){
-				    		$rowDatasLike[$k] = [
-								'page_id' => $this->pageId,
-						 		'post_id' => $rowDatas[$i]['post_id'],
-								'individual_name' => @$like['name'],
-								'individual_category' => @$like['profile_type'], //get category by 
-								'individual_id' => @$like['id'],
-								'to_name' => '',
-								'data_aquired_time' => date('Y-m-d H:i:s'),
-							];
-							$likes::deleteAll(['page_id'=> $rowDatasLike[$k]['page_id'],'post_id'=>$rowDatasLike[$k]['post_id'], 'individual_id'=>$rowDatasLike[$k]['individual_id'] ]);
-				    	}
+		    			//$data = $row->getDecodedBody(); //Backup
+		    			$Params = $requests[$i]->getParams();
+		    			$limitFeed = $Params["limit"];
+				    	$likeEdges = $row->getGraphEdge();
+				    	$this->SaveAllLikes($rowDatasLike, $likeEdges, $rowDatas[$i]['post_id'], $likes, $Params);				    	
 				    	
-				    }
-				    Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
+				    	$totalP = ($limitFeed> 1000)?ceil( $limitFeed/ 1000): 0;
+						for($i = 0; $i < $totalP; $i ++)
+						{
+							$nextLikes = $this->fb->next($likeEdges);
+							if(empty($nextLikes)) break;
+							$this->SaveAllLikes($rowDatasLike ,$nextLikes, $rowDatas[$i]['post_id'], $likes, $Params);
+							if(count($nextLikes) < 1000) break;
+						};
+						$likes::deleteAll(['page_id'=> $this->pageId, 'post_id'=> $Params["local_post_id"]]);
+				    	Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
+					}
 		    	}
 	    	}
-
-		    $transaction->commit();
 		} catch (\Exception $e) {
 		    $transaction->rollBack();
 		    throw $e;
@@ -233,22 +246,22 @@ class ApiController extends Controller
 		}
     }
 
-    public function actionExport()
+    public function SaveAllLikes(&$rowDatasLike, $data, $post_id, $likes, $Params){
+    	foreach($data as $k => $like){
+    		$rowDatasLike[$k] = [
+				'page_id' => $this->pageId,
+		 		'post_id' => $post_id,
+				'individual_name' => @$like['name'],
+				'individual_category' => @$like['profile_type'], //get category by 
+				'individual_id' => @$like['id'],
+				'to_name' => '',
+				'data_aquired_time' => date('Y-m-d H:i:s'),
+			];
+    	}
+    }
+    public function actionexportLike()
     {
-    	$data = "Product Name; Article; Price; Description; Amount; Manufacturer\r\n";
-		$model = [];//models\LikesDetailInPost::model()->findAll();
-		foreach ($model as $value) {
-		$data .= $value->name.
-		';' . $value->article .
-		';' . $value->cost .
-		';' . $value->description .
-		';' . $value->count .
-		';' . $value->producer .
-		"\r\n";
-		}
-		header('Content-type: text/csv');
-		header('Content-Disposition: attachment; filename="export_' . date('d.m.Y') . '.csv"');
-		echo iconv('utf-8', 'windows-1251', $data); //If suddenly in Windows will gibberish
-		Yii::app()->end();
+    	//$t = new CSVExport();
+    	
     }
 }

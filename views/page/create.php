@@ -17,5 +17,5 @@ $this->params['breadcrumbs'][] = $this->title;
     <?= $this->render('_form', [
         'model' => $model,
     ]) ?>
-
+    <?= Html::a('Back to List', ['index'], ['class' => 'btn btn-warning']) ?> 
 </div>

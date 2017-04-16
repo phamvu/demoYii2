@@ -16,6 +16,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <h1><?= Html::encode($this->title) ?></h1>
 
     <p>
+        <?= Html::a('Back', Yii::$app->homeUrl, ['class' => 'btn']) ?>
         <?= Html::a('Update', ['update', 'id' => $model->page_id], ['class' => 'btn btn-primary']) ?>
         <?= Html::a('Delete', ['delete', 'id' => $model->page_id], [
             'class' => 'btn btn-danger',
@@ -24,7 +25,6 @@ $this->params['breadcrumbs'][] = $this->title;
                 'method' => 'post',
             ],
         ]) ?>
-		<?= Html::a('Generate Site: '. $model->page_id,['api/create', 'PAGE_ID'=> $model->page_id],['class'=>'btn btn-success'])?>
     </p>
 
     <?= DetailView::widget([
@@ -36,6 +36,10 @@ $this->params['breadcrumbs'][] = $this->title;
         ],
     ]) ?>
 	
+    <p>
+        <?= Html::a('Generate Site: '. $model->page_id, ['api/create', 'PAGE_ID'=> $model->page_id],['class'=>'btn btn-success'])?>
+    </p>
+
 	<div class="body-content">
          <?=GridView::widget($dataPost)?>
     </div>

@@ -1,33 +1,34 @@
 <?php
 
 use yii\helpers\Html;
-use yii\grid\GridView;
-
+use kartik\grid\GridView;
 /* @var $this yii\web\View */
-/* @var $searchModel app\models\PageListSearch */
+/* @var $searchModel app\models\LikesDetailInPostSearch */
 /* @var $dataProvider yii\data\ActiveDataProvider */
 
-$this->title = 'Page Lists';
+$this->title = 'Likes Detail In Posts';
 $this->params['breadcrumbs'][] = $this->title;
 ?>
-<div class="page-list-index">
+<div class="likes-detail-in-post-index">
 
     <h1><?= Html::encode($this->title) ?></h1>
     <?php // echo $this->render('_search', ['model' => $searchModel]); ?>
-
-    <p>
-        <?= Html::a('Back', Yii::$app->homeUrl, ['class' => 'btn']) ?>
-        <?= Html::a('Create Page List', ['create'], ['class' => 'btn btn-success']) ?> 
-    </p>
-    <?= GridView::widget([
+    <?php /*GridView::widget([
         'dataProvider' => $dataProvider,
         'filterModel' => $searchModel,
         'columns' => [
             ['class' => 'yii\grid\SerialColumn'],
 
             'page_id',
-            'name:ntext',
+            'post_id',
+            'individual_name:ntext',
+            'individual_category:ntext',
+            'individual_id',
+            // 'to_name:ntext',
+            // 'data_aquired_time',
+
             ['class' => 'yii\grid\ActionColumn'],
         ],
-    ]); ?>
+    ]); */?>
+    <?=GridView::widget($dataPost)?>
 </div>

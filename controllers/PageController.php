@@ -71,23 +71,37 @@ class PageController extends Controller
                 ]
             ],
         ]);
+
         $exportConfig = [GridView::CSV => ['label' => 'Save as CSV']];
+        
+        $cl[0] = [
+            'format' => 'raw',
+            'attribute' => 'like',
+            'label' => 'Export',
+            'value' => function ($model) {
+                return Html::a('View Likes', ['likes/index', 'LikesDetailInPostSearch[post_id]' => $model->post_id],
+                [
+                    'class' => 'btn btn-success',
+                    'target' => '_blank'
+                ]);
+            }
+        ];
+        $cl += $post->attributes();
+        //$cl[9] = [ 'attribute' => 'message', 'value' => function($data){return mb_substr($data->message, 0, 100);}];
         return $this->render('view',
             [
                 'dataPost'=> [
                     'exportConfig'=>$exportConfig,
                     'toolbar' => ['{export}','{toggleData}'],
-                    'containerOptions'=>['style'=>'overflow: auto'],
-                    'headerRowOptions'=>['class'=>'kartik-sheet-style'],
-                    'filterRowOptions'=>['class'=>'kartik-sheet-style'],
                     'dataProvider'=> $dataProvider,
                     'filterModel' => $post,
-                    'columns' => $post->attributes(),
+                    'columns' => $cl,
                     'responsive'=>true,
                     'hover'=>true,
                      'toolbar'=> [
-                        ['content'=>
-                           ''
+                        [
+                            'content'=> '',
+                            'options' => ['class' => 'btn-group-sm pull-left']
                         ],
                         '{export}',
                     ],
@@ -108,7 +122,7 @@ class PageController extends Controller
     public function actionCreate()
     {
         $model = new PageList();
-
+        $model->data_aquired_time = date('Y-m-d h:i:s');
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             return $this->redirect(['view', 'id' => $model->page_id]);
         } else {
@@ -160,7 +174,6 @@ class PageController extends Controller
     protected function findModel($id)
     {
         if (($model = PageList::findOne($id)) !== null) {
-            LikesDetailInPost::deleteAll(['page_id'=> $id]);
             return $model;
         } else {
             throw new NotFoundHttpException('The requested page does not exist.');
