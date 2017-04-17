@@ -8,4 +8,6 @@ return [
 	'APP_LIMIT' => '25',
 	'MAX_LIMIT' => '1000',
 	'APP_VERSION' => 'v2.5',
+	'FILENAME_FEED' => 'FB_FEED_LIST_',
+	'FILENAME_LIKE' => 'FB_LIKE_LIST_',
 ];

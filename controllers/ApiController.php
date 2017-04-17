@@ -146,7 +146,7 @@ class ApiController extends Controller
     	set_time_limit(50000);
     	ini_set('memory_limit', '256M');
         ini_set('max_execution_time', 50000);
-        ini_set('max_allowed_packet', 1073741824);
+        ini_set('max_allowed_packet', '500M');
         ini_set('wait_timeout', 50000);
 
         $connection = \Yii::$app->db;

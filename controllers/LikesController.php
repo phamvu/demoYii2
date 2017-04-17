@@ -35,9 +35,12 @@ class LikesController extends Controller
      */
     public function actionIndex()
     {
+        $str_query = Yii::$app->request->get('LikesDetailInPostSearch')['post_id'];
+        $id = explode('_', $str_query)[0];
+                
         $searchModel = new LikesDetailInPostSearch();
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
-        $exportConfig = [GridView::CSV => ['label' => 'Save as CSV']];
+        $exportConfig = [GridView::CSV => ['label' => 'Save as CSV', 'filename'=> Yii::$app->params['FILENAME_LIKE'].'_'.$id.'_'.date('Ymd')]];
         $post = $searchModel->attributes();
         return $this->render('index', [
             'searchModel' => $searchModel,

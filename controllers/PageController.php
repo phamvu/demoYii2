@@ -72,7 +72,7 @@ class PageController extends Controller
             ],
         ]);
 
-        $exportConfig = [GridView::CSV => ['label' => 'Save as CSV']];
+        $exportConfig = [GridView::CSV => ['label' => 'Save as CSV', 'filename'=> Yii::$app->params['FILENAME_FEED'].'_'.$id.'_'.date('Ymd')]];
         
         $cl[0] = [
             'format' => 'raw',
