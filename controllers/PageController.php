@@ -79,7 +79,7 @@ class PageController extends Controller
             'attribute' => 'like',
             'label' => 'Export',
             'value' => function ($model) {
-                return Html::a('View Likes', ['likes/index', 'LikesDetailInPostSearch[post_id]' => $model->post_id],
+                return Html::a('View '. htmlentities(sprintf("%'05d", $model->likes)).' Likes', ['likes/index', 'LikesDetailInPostSearch[post_id]' => $model->post_id],
                 [
                     'class' => 'btn btn-success',
                     'target' => '_blank'
@@ -160,7 +160,8 @@ class PageController extends Controller
     public function actionDelete($id)
     {
         $this->findModel($id)->delete();
-
+        models\LikesDetailInPost::deleteAll(['page_id'=> $id]);
+        models\PostFromFeed::deleteAll(['page_id'=> $id]);
         return $this->redirect(['index']);
     }
 

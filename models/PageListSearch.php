@@ -57,11 +57,10 @@ class PageListSearch extends PageList
             return $dataProvider;
         }
 
-        // grid filtering conditions
-        $query->andFilterWhere([
-            'page_id' => $this->page_id,
-            'data_aquired_time' => $this->data_aquired_time,
-        ]);
+        $query->andFilterWhere(['like', 'page_id', $this->page_id]);
+
+        $query->andFilterWhere(['like', 'data_aquired_time', $this->data_aquired_time]);
+        
 
         $query->andFilterWhere(['like', 'name', $this->name]);
 

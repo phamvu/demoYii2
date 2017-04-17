@@ -128,8 +128,7 @@ class ApiController extends Controller
 		
 		$pageInfo = $feeds[0]->getDecodedBody();
 		$response = $feeds[1];
-		$connection = \Yii::$app->db;
-    	$transaction = $connection->beginTransaction();
+    	
 		if ($response->isError()) {
 	    	$error = $response->getThrownException();
 	    	echo ' error: ' . $error->getMessage(); die;
@@ -137,17 +136,22 @@ class ApiController extends Controller
 	    	$data = $response->getDecodedBody();
 	    	$this->addData($data['data'], $pageInfo);
 	  	}
-	  	$transaction->commit();
+	  	
 	  	//return $this->render('../site/index');
 	  	return $this->goBack((!empty(Yii::$app->request->referrer) ? Yii::$app->request->referrer : null));
 	  	//return $this->redirect('index');
 	}
     
     private function addData($datas, $pageInfo = []){
+    	set_time_limit(50000);
     	ini_set('memory_limit', '256M');
-        ini_set('max_execution_time', 500);
-        ini_set('max_allowed_packet', 500);
-        ini_set('wait_timeout', 500);
+        ini_set('max_execution_time', 50000);
+        ini_set('max_allowed_packet', 1073741824);
+        ini_set('wait_timeout', 50000);
+
+        $connection = \Yii::$app->db;
+        $transaction = $connection->beginTransaction();
+
 		try {
 			$post = new models\PostFromFeed();
 			$likes = new models\LikesDetailInPost();
@@ -210,33 +214,41 @@ class ApiController extends Controller
 				if(!empty($dell)) $dell->delete();
 				$requests[] = $this->fb->request('GET', '/'. $row['id'] .'/likes')->setParams(array('local_post_id'=> $row['id'],'fields'=>'id,profile_type,name','limit'=>@$row['likes']['summary']['total_count']));
 	    	}
-
 	    	Yii::$app->db->createCommand()->batchInsert(models\PostFromFeed::tableName(), $post->attributes(), $rowDatas)->execute();
 	    	
 	    	if(!empty($requests)){
 		    	$feeds = $this->fb->sendBatchRequest($requests, $this->token);
 		    	foreach($feeds as $i=> $row){
-		    		$rowDatasLike = [];
 		    		if(!$row->isError()) {
+		    			$rowDatasLike = [];
 		    			//$data = $row->getDecodedBody(); //Backup
 		    			$Params = $requests[$i]->getParams();
 		    			$limitFeed = $Params["limit"];
 				    	$likeEdges = $row->getGraphEdge();
-				    	$this->SaveAllLikes($rowDatasLike, $likeEdges, $rowDatas[$i]['post_id'], $likes, $Params);				    	
-				    	
-				    	$totalP = ($limitFeed> 1000)?ceil( $limitFeed/ 1000): 0;
+				    	$this->SaveAllLikes($rowDatasLike, $likeEdges, $Params["local_post_id"], $likes, $Params);				    	
+				    	$totalP = ($limitFeed> Yii::$app->params['MAX_LIMIT'])?ceil( $limitFeed/ Yii::$app->params['MAX_LIMIT']): 0;
+
+				    	//while ($nextLikes = $this->fb->next($likeEdges)){
 						for($i = 0; $i < $totalP; $i ++)
 						{
 							$nextLikes = $this->fb->next($likeEdges);
-							if(empty($nextLikes)) break;
-							$this->SaveAllLikes($rowDatasLike ,$nextLikes, $rowDatas[$i]['post_id'], $likes, $Params);
-							if(count($nextLikes) < 1000) break;
+							if(empty($nextLikes)){
+								break;
+							}
+							$this->SaveAllLikes($rowDatasLike ,$nextLikes, $Params["local_post_id"], $likes, $Params);
+							if(count($nextLikes) < Yii::$app->params['MAX_LIMIT']){
+								break;
+							}
+							else{
+								$likeEdges = $nextLikes;
+							}
 						};
 						$likes::deleteAll(['page_id'=> $this->pageId, 'post_id'=> $Params["local_post_id"]]);
 				    	Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
 					}
-		    	}
+		    	}		    	
 	    	}
+	    	$transaction->commit();
 		} catch (\Exception $e) {
 		    $transaction->rollBack();
 		    throw $e;
@@ -248,7 +260,7 @@ class ApiController extends Controller
 
     public function SaveAllLikes(&$rowDatasLike, $data, $post_id, $likes, $Params){
     	foreach($data as $k => $like){
-    		$rowDatasLike[$k] = [
+    		$rowDatasLike[] = [
 				'page_id' => $this->pageId,
 		 		'post_id' => $post_id,
 				'individual_name' => @$like['name'],
@@ -259,9 +271,67 @@ class ApiController extends Controller
 			];
     	}
     }
-    public function actionexportLike()
+
+
+	/*
+    public function actionsDemo()
     {
-    	//$t = new CSVExport();
-    	
-    }
+    	if(empty($PAGE_ID))
+    		$PAGE_ID = Yii::$app->params['PAGE_ID'];
+    	else
+			$this->pageId = $PAGE_ID;
+
+		$this->fb = new Facebook\Facebook([
+		   	'app_id' => Yii::$app->params['APP_ID'],
+		  	'app_secret' => Yii::$app->params['APP_SECRET'],
+		  	'default_graph_version' => Yii::$app->params['APP_VERSION'],
+		]);
+		$fbApp = $this->fb->getApp();
+		
+		$serializedFacebookApp = serialize($fbApp);
+		$unserializedFacebookApp = unserialize($serializedFacebookApp);
+		$likes = new models\LikesDetailInPost();
+		if(empty($_SESSION['fb_access_token']))
+			$this->token = $_SESSION['fb_access_token'] = $unserializedFacebookApp->getAccessToken();
+
+		
+		$requests = [
+			$this->fb->request('GET', '/'. '452101311658243_658973447637694' .'/likes')->setParams(array('local_post_id'=> '452101311658243_658973447637694','fields'=>'id,profile_type,name','limit'=> 120))
+		];
+		
+		$feeds = $this->fb->sendBatchRequest($requests, $this->token);
+    	foreach($feeds as $i=> $row){
+    		if(!$row->isError()) {
+    			$rowDatasLike = [];
+    			//$data = $row->getDecodedBody(); //Backup
+    			$Params = $requests[$i]->getParams();
+    			$limitFeed = $Params["limit"];
+		    	$likeEdges = $row->getGraphEdge();
+		    	
+		    	$this->SaveAllLikes($rowDatasLike, $likeEdges, $Params["local_post_id"], $likes, $Params);				    	
+		    	
+		    	$totalP = ($limitFeed> 100)?ceil( $limitFeed/ 100): 0;
+				$i = 0;
+				while ($nextLikes = $this->fb->next($likeEdges)){
+					echo count($nextLikes).' ROW: ' .$i++.' ==> <br/>';
+					$this->SaveAllLikes($rowDatasLike, $nextLikes, $Params["local_post_id"], $likes, $Params);	
+					$likeEdges = $nextLikes;
+				}
+				var_dump('<pre>', $rowDatasLike, '</pre><br/><br/>'); /////////AAAAAAAAAAAAAA
+				// for($i = 0; $i < $totalP; $i ++)
+				// {
+				// 	$nextLikes = $this->fb->next($likeEdges);
+				// 	if(empty($nextLikes)) break;
+				// 	$this->SaveAllLikes($rowDatasLike ,$nextLikes, $Params["local_post_id"], $likes, $Params);
+				// 	var_dump('<pre>', $rowDatasLike, '</pre><br/><br/>'); /////////AAAAAAAAAAAAAA
+				// 	if(count($nextLikes) < 10) break;
+				// };
+				//$likes::deleteAll(['page_id'=> $this->pageId, 'post_id'=> $Params["local_post_id"]]);
+		    	//Yii::$app->db->createCommand()->batchInsert(models\LikesDetailInPost::tableName(), $likes->attributes(), $rowDatasLike)->execute();
+			}
+    	}	
+		die;
+
+    	return;
+    }*/
 }
