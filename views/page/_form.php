@@ -12,9 +12,15 @@ use yii\widgets\ActiveForm;
 
     <?php $form = ActiveForm::begin(); ?>
 
+    <?= $form->field($model, 'name')->textarea(['rows' => 6]); ?>
+    
+    <div class="form-group">
+    <?php
+        if(!empty($flag) && $flag == 'create') echo Html::Button('Get PageID', ['class' => 'btn btn-info', 'id' => 'create_id']);                
+    ?>
+    </div>
+    
     <?= $form->field($model, 'page_id')->textInput() ?>
-
-    <?= $form->field($model, 'name')->textarea(['rows' => 6]) ?>
 
     <?= $form->field($model, 'data_aquired_time')->textInput() ?>
 
